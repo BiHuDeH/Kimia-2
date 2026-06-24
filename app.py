@@ -140,26 +140,8 @@ def standardize_columns(df, col_map):
     df = df.loc[:, ~df.columns.duplicated()]
     return df
 
-def contains_all_words(text, phrase):
-    """
-    تابع جستجوی هوشمند با عملگر AND
-    این تابع بررسی می‌کند که تمام واژه‌های موجود در یک عبارت، داخل متن (بدون در نظر گرفتن فاصله) وجود داشته باشند.
-    """
-    if pd.isna(text):
-        return False
-    text = str(text)
-    words = phrase.split() # کلمات را بر اساس فاصله از هم جدا می‌کند
-    return all(word in text for word in words)
-
-def match_any_phrase(text, phrases_list):
-    """بررسی اینکه آیا حداقل یکی از عبارات لیست، با شرط AND درون متن صدق می‌کند"""
-    for phrase in phrases_list:
-        if contains_all_words(text, phrase):
-            return True
-    return False
-
 def generate_styled_excel(df, sheet_name="Report"):
-    """تولید خروجی اکسل بر اساس استاندارد فرمت app2.py"""
+    """تولید خروجی اکسل با فرمت کاملاً یکسان و مشابه app (2).py"""
     output = BytesIO()
     wb = Workbook()
     ws = wb.active
@@ -237,39 +219,42 @@ def process_pasargad(file):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
 
-        # اعمال فیلترها با استفاده از تابع هوشمند AND
-        card_mask = df['Description'].apply(lambda x: contains_all_words(x, "انتقال از"))
-        fee_mask = df['Description'].apply(lambda x: contains_all_words(x, "کارمزد"))
-        withdraw_mask = df['Description'].apply(lambda x: contains_all_words(x, "انتقال وجه به سپرده مهران کلانتریان"))
-        snap_mask = df['Description'].apply(lambda x: contains_all_words(x, "غذا اطلس"))
+        df['Description'] = df['Description'].astype(str)
 
-        card_sum = df[card_mask].groupby('Date')['Deposit'].sum().reindex(unique_dates, fill_value=0)
+        # فیلترینگ مطابق با درخواست کاربر (استفاده از شرط AND بومی پانداس برای اطلس)
+        card_to_card_mask = df['Description'].str.contains("انتقال از", na=False)
+        fee_mask = df['Description'].str.contains("کارمزد", na=False)
+        daily_withdrawal_mask = df['Description'].str.contains("انتقال وجه به سپرده 379.8000.10822179.1 به نام سپرده كوتاه مدت - مهران کلانتريان_سامانه بانکداری نوین", na=False)
+        snap_deposit_mask = df['Description'].str.contains("غذا", na=False) & df['Description'].str.contains("اطلس", na=False)
+
+        card_to_card_sum = df[card_to_card_mask].groupby('Date')['Deposit'].sum().reindex(unique_dates, fill_value=0)
         fee_sum = df[fee_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
-        withdraw_sum = df[withdraw_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
-        snap_sum = df[snap_mask].groupby('Date')['Deposit'].sum().reindex(unique_dates, fill_value=0)
+        daily_withdrawal_sum = df[daily_withdrawal_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
+        snap_deposit_sum = df[snap_deposit_mask].groupby('Date')['Deposit'].sum().reindex(unique_dates, fill_value=0)
         
         end_of_day_balance = df.sort_values(['Date', 'Time']).groupby('Date')['Balance'].last().reindex(unique_dates, fill_value=0)
 
         report = pd.DataFrame(index=unique_dates)
-        report['card'] = card_sum
-        report['fee'] = fee_sum
-        report['withdraw'] = withdraw_sum
-        report['snap'] = snap_sum
-        report['balance'] = end_of_day_balance
-
-        report['sales'] = report['card'] / 1.1
-        report['tax'] = report['card'] - report['sales']
-
-        report = report.reset_index().rename(columns={'index': 'تاریخ'})
-        rename_map = {
-            'Date': 'تاریخ', 'card': 'کارت به کارت', 'sales': 'فروش',
-            'tax': 'مالیات', 'fee': 'کارمزد', 'withdraw': 'برداشت روز',
-            'balance': 'مانده آخر روز', 'snap': 'واریزی اسنپ'
-        }
-        report = report.rename(columns=rename_map)
+        report.index.name = 'Date'
         
-        cols_order = ['تاریخ', 'کارت به کارت', 'فروش', 'مالیات', 'کارمزد', 'برداشت روز', 'مانده آخر روز', 'واریزی اسنپ']
-        return report[cols_order], None
+        report['Card_to_Card'] = card_to_card_sum
+        report['Fee'] = fee_sum
+        report['Daily_Withdrawal'] = daily_withdrawal_sum
+        report['Snap_Deposit'] = snap_deposit_sum
+        report['End_of_Day_Balance'] = end_of_day_balance
+
+        report['Sales'] = report['Card_to_Card'] / 1.1
+        report['Tax'] = report['Card_to_Card'] - report['Sales']
+
+        report = report.reset_index()
+
+        # تغییر نام ستون‌ها بر اساس خواسته کاربر
+        report.columns = ['تاریخ', 'کارت به کارت', 'کارمزد', 'برداشت روز', 'واریزی اسنپ', 'مانده آخر روز', 'فروش', 'مالیات']
+        
+        # مرتب‌سازی نهایی
+        final_order = ['تاریخ', 'کارت به کارت', 'فروش', 'مالیات', 'کارمزد', 'برداشت روز', 'مانده آخر روز', 'واریزی اسنپ']
+        
+        return report[final_order], None
 
     except Exception as e:
         return None, str(e)
@@ -292,98 +277,4 @@ def process_karafrin(file):
         
         req_cols = ['Date', 'Description', 'Withdrawal', 'Balance']
         missing = [c for c in req_cols if c not in df.columns]
-        if missing: return None, f"ستون‌های الزامی یافت نشدند: {', '.join(missing)}"
-
-        df = df.dropna(subset=['Date'])
-        for col in ['Withdrawal', 'Balance']: df[col] = df[col].apply(clean_currency)
-        
-        w_keywords = ["انتقال از", "برداشت از"]
-        f_keywords = ["برداشت برای کارمزد", "دریافت کارمزد"]
-
-        def calc_daily(group):
-            w_sum = group[group['Description'].apply(lambda x: match_any_phrase(x, w_keywords))]['Withdrawal'].sum()
-            f_sum = group[group['Description'].apply(lambda x: match_any_phrase(x, f_keywords))]['Withdrawal'].sum()
-            first_bal = group['Balance'].iloc[0]
-            return pd.Series({'برداشت روز': w_sum, 'کارمزد': f_sum, 'مانده روز': first_bal})
-
-        result_df = df.groupby('Date', sort=False).apply(calc_daily).reset_index()
-        result_df = result_df.rename(columns={'Date': 'تاریخ'})
-        return result_df, None
-
-    except Exception as e:
-        return None, str(e)
-
-# --- رابط کاربری اصلی ---
-def main():
-    st.markdown("""
-        <div style="text-align: center; padding: 10px 0 30px 0;">
-            <h1 style="font-size: 3em; margin-bottom: 5px;">داشبورد مالی کیمیا</h1>
-        </div>
-    """, unsafe_allow_html=True)
-
-    tab1, tab2 = st.tabs(["🏦 گزارش مالی بانک پاسارگاد", "🏢 گزارش مالی بانک کارآفرین"])
-
-    # ---------- تب پاسارگاد ----------
-    with tab1:
-        st.markdown("### 📑 گزارش مالی بانک پاسارگاد")
-        
-        upl_pasargad = st.file_uploader("فایل اکسل پاسارگاد را اینجا بکشید و رها کنید", type=["xlsx"], key="upl_pasargad")
-        
-        if upl_pasargad:
-            if st.button("شروع پردازش پاسارگاد", key="btn_pasargad"):
-                with st.spinner("در حال تحلیل فایل پاسارگاد..."):
-                    res_pasargad, err_pasargad = process_pasargad(upl_pasargad)
-                    
-                    if err_pasargad:
-                        st.error(f"خطا در پردازش: {err_pasargad}")
-                    else:
-                        st.success("گزارش پاسارگاد با موفقیت ایجاد شد!")
-                        
-                        disp_pasargad = res_pasargad.copy()
-                        for col in disp_pasargad.columns:
-                            if col != 'تاریخ': disp_pasargad[col] = disp_pasargad[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
-                        
-                        st.dataframe(disp_pasargad, use_container_width=True)
-                        
-                        excel_pasargad = generate_styled_excel(res_pasargad, "Pasargad Report")
-                        st.download_button(
-                            "📥 دانلود گزارش پاسارگاد",
-                            excel_pasargad,
-                            f"Pasargad_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key="dl_pasargad"
-                        )
-
-    # ---------- تب کارآفرین ----------
-    with tab2:
-        st.markdown("### 📑 گزارش مالی بانک کارآفرین")
-        
-        upl_karafrin = st.file_uploader("فایل اکسل کارآفرین را اینجا بکشید و رها کنید", type=["xlsx"], key="upl_karafrin")
-        
-        if upl_karafrin:
-            if st.button("شروع پردازش کارآفرین", key="btn_karafrin"):
-                with st.spinner("در حال تحلیل فایل کارآفرین..."):
-                    res_karafrin, err_karafrin = process_karafrin(upl_karafrin)
-                    
-                    if err_karafrin:
-                        st.error(f"خطا در پردازش: {err_karafrin}")
-                    else:
-                        st.success("گزارش کارآفرین با موفقیت ایجاد شد!")
-                        
-                        disp_karafrin = res_karafrin.copy()
-                        for col in disp_karafrin.columns:
-                            if col != 'تاریخ': disp_karafrin[col] = disp_karafrin[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
-                        
-                        st.dataframe(disp_karafrin, use_container_width=True)
-                        
-                        excel_karafrin = generate_styled_excel(res_karafrin, "Karafarin Report")
-                        st.download_button(
-                            "📥 دانلود گزارش کارآفرین",
-                            excel_karafrin,
-                            f"Karafarin_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key="dl_karafrin"
-                        )
-
-if __name__ == "__main__":
-    main()
+        if missing:
