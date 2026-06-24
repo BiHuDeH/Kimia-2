@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+import time
 from io import BytesIO
 from datetime import datetime
 from openpyxl import Workbook
@@ -27,31 +28,32 @@ def apply_modern_design():
                 text-align: right;
             }
             
+            /* پس‌زمینه توسی ملایم و خوانا */
             .stApp {
-                background-color: #f8f9fa;
+                background-color: #eaedf2; 
                 color: #212529;
             }
             
             h1, h2, h3 {
                 color: #0b3d91 !important;
                 font-weight: 800 !important;
-                text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
             }
 
             .stTabs [data-baseweb="tab-list"] {
                 gap: 10px;
-                background-color: #e9ecef;
+                background-color: #dce1e8;
                 padding: 10px 10px 0 10px;
                 border-radius: 12px 12px 0 0;
             }
             .stTabs [data-baseweb="tab"] {
                 height: 50px;
-                background-color: white;
+                background-color: #ffffff;
                 border-radius: 8px 8px 0 0;
                 padding: 10px 20px;
                 font-weight: bold;
                 color: #495057;
-                border: 1px solid #dee2e6;
+                border: 1px solid #ced4da;
                 border-bottom: none;
             }
             .stTabs [aria-selected="true"] {
@@ -59,26 +61,37 @@ def apply_modern_design():
                 color: white !important;
             }
 
+            /* اصلاح رنگ باکس آپلود فایل برای جلوگیری از سیاه شدن در حالت دارک مود */
             [data-testid="stFileUploader"] {
-                background-color: white;
-                border: 2px dashed #adb5bd;
-                border-radius: 15px;
-                padding: 25px;
+                background-color: #ffffff !important;
+                border: 2px dashed #0b3d91 !important;
+                border-radius: 15px !important;
+                padding: 30px !important;
                 transition: all 0.3s ease;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             }
             [data-testid="stFileUploader"]:hover {
-                border-color: #0b3d91;
-                background-color: #f1f5f9;
+                border-color: #ff8800 !important;
+                background-color: #f8fbff !important;
+            }
+            /* اجبار به رنگ متن تیره برای المان‌های داخل باکس آپلود */
+            [data-testid="stFileUploader"] * {
+                color: #1e293b !important;
+                font-family: 'Vazirmatn', sans-serif !important;
+            }
+            [data-testid="stFileUploader"] small {
+                color: #64748b !important;
+                font-size: 14px !important;
             }
 
+            /* دکمه‌های اصلی */
             .stButton > button {
                 width: 100%;
                 border-radius: 12px;
-                height: 50px;
-                font-size: 16px;
+                height: 55px;
+                font-size: 17px;
                 font-weight: 700;
-                color: white;
+                color: white !important;
                 background: linear-gradient(135deg, #0b3d91, #1e90ff);
                 border: none;
                 box-shadow: 0 4px 15px rgba(11, 61, 145, 0.3);
@@ -87,18 +100,32 @@ def apply_modern_design():
             .stButton > button:hover {
                 transform: translateY(-2px);
                 box-shadow: 0 6px 20px rgba(11, 61, 145, 0.4);
-                color: white !important;
             }
 
+            /* دکمه دانلود برجسته */
             .stDownloadButton > button {
-                background: linear-gradient(135deg, #28a745, #20c997) !important;
-                box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3) !important;
+                background: linear-gradient(135deg, #10b981, #059669) !important;
+                box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
+                border: 2px solid #047857 !important;
+                height: 60px;
+                font-size: 18px;
+            }
+            .stDownloadButton > button:hover {
+                background: linear-gradient(135deg, #059669, #047857) !important;
             }
 
             [data-testid="stDataFrame"] {
                 border-radius: 12px;
                 overflow: hidden;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                border: 1px solid #e2e8f0;
+                background-color: #ffffff;
+            }
+            
+            /* پیام‌های آلرت */
+            [data-testid="stAlert"] {
+                border-radius: 10px;
+                font-weight: 500;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -140,17 +167,28 @@ def standardize_columns(df, col_map):
     df = df.loc[:, ~df.columns.duplicated()]
     return df
 
+def contains_all_words(text, phrase):
+    if pd.isna(text): return False
+    text = str(text)
+    words = phrase.split()
+    return all(word in text for word in words)
+
+def match_any_phrase(text, phrases_list):
+    for phrase in phrases_list:
+        if contains_all_words(text, phrase):
+            return True
+    return False
+
 def generate_styled_excel(df, sheet_name="Report"):
-    """تولید خروجی اکسل با فرمت کاملاً یکسان و مشابه app (2).py"""
     output = BytesIO()
     wb = Workbook()
     ws = wb.active
     ws.title = sheet_name
     ws.sheet_view.rightToLeft = True 
 
-    # تنظیم استایل‌ها
-    header_font = Font(bold=True, size=12, name='Tahoma')
-    regular_font = Font(size=11, name='Tahoma')
+    # استفاده از فونت Vazirmatn برای اکسل
+    header_font = Font(bold=True, size=12, name='Vazirmatn')
+    regular_font = Font(size=11, name='Vazirmatn')
     center_align = Alignment(horizontal="center", vertical="center")
     thin_border_side = Side(style="thin", color="333333")
     thin_border = Border(left=thin_border_side, right=thin_border_side, top=thin_border_side, bottom=thin_border_side)
@@ -158,18 +196,15 @@ def generate_styled_excel(df, sheet_name="Report"):
     headers = list(df.columns)
     ws.append(headers)
     
-    # اعمال فرمت هدر
     for cell in ws[1]:
         cell.font = header_font
         cell.alignment = center_align
         cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
         cell.border = thin_border
     
-    # وارد کردن داده‌ها
     for row in df.itertuples(index=False, name=None):
         ws.append(row)
 
-    # استایل‌دهی به سلول‌های بدنه
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
         for cell in row:
             cell.alignment = center_align
@@ -178,11 +213,9 @@ def generate_styled_excel(df, sheet_name="Report"):
             if cell.column_letter != 'A':
                 cell.number_format = '#,##0'
 
-    # تنظیم عرض یکسان برای همه ستون‌ها
     for col in ws.columns:
         ws.column_dimensions[col[0].column_letter].width = 18
 
-    # اعمال تیبل دیزاین اکسل
     if ws.max_row >= 2:
         last_col = get_column_letter(ws.max_column)
         tab = Table(displayName=f"Table_{sheet_name.replace(' ', '_')}", ref=f"A1:{last_col}{ws.max_row}")
@@ -194,17 +227,14 @@ def generate_styled_excel(df, sheet_name="Report"):
     return output.getvalue()
 
 # --- پردازشگر گزارش پاسارگاد ---
-@st.cache_data(show_spinner=False)
 def process_pasargad(file):
     try:
         df = pd.read_excel(file, skiprows=2)
-        
         expected_columns = [
             'Index', 'Branch Code', 'Branch', 'Date', 'Time', 
             'Document Number', 'Receipt Number', 'Check Number', 
             'Description', 'Withdrawal', 'Deposit', 'Balance', 'Notes'
         ]
-        
         if len(df.columns) >= len(expected_columns):
             df.columns = expected_columns + list(df.columns[len(expected_columns):])
         else:
@@ -221,7 +251,6 @@ def process_pasargad(file):
 
         df['Description'] = df['Description'].astype(str)
 
-        # فیلترینگ مطابق با درخواست کاربر (استفاده از شرط AND بومی پانداس برای اطلس)
         card_to_card_mask = df['Description'].str.contains("انتقال از", na=False)
         fee_mask = df['Description'].str.contains("کارمزد", na=False)
         daily_withdrawal_mask = df['Description'].str.contains("انتقال وجه به سپرده 379.8000.10822179.1 به نام سپرده كوتاه مدت - مهران کلانتريان_سامانه بانکداری نوین", na=False)
@@ -231,27 +260,20 @@ def process_pasargad(file):
         fee_sum = df[fee_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
         daily_withdrawal_sum = df[daily_withdrawal_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
         snap_deposit_sum = df[snap_deposit_mask].groupby('Date')['Deposit'].sum().reindex(unique_dates, fill_value=0)
-        
         end_of_day_balance = df.sort_values(['Date', 'Time']).groupby('Date')['Balance'].last().reindex(unique_dates, fill_value=0)
 
         report = pd.DataFrame(index=unique_dates)
         report.index.name = 'Date'
-        
         report['Card_to_Card'] = card_to_card_sum
         report['Fee'] = fee_sum
         report['Daily_Withdrawal'] = daily_withdrawal_sum
         report['Snap_Deposit'] = snap_deposit_sum
         report['End_of_Day_Balance'] = end_of_day_balance
-
         report['Sales'] = report['Card_to_Card'] / 1.1
         report['Tax'] = report['Card_to_Card'] - report['Sales']
 
         report = report.reset_index()
-
-        # تغییر نام ستون‌ها بر اساس خواسته کاربر
         report.columns = ['تاریخ', 'کارت به کارت', 'کارمزد', 'برداشت روز', 'واریزی اسنپ', 'مانده آخر روز', 'فروش', 'مالیات']
-        
-        # مرتب‌سازی نهایی
         final_order = ['تاریخ', 'کارت به کارت', 'فروش', 'مالیات', 'کارمزد', 'برداشت روز', 'مانده آخر روز', 'واریزی اسنپ']
         
         return report[final_order], None
@@ -260,7 +282,6 @@ def process_pasargad(file):
         return None, str(e)
 
 # --- پردازشگر گزارش کارآفرین ---
-@st.cache_data(show_spinner=False)
 def process_karafrin(file):
     try:
         df_temp = pd.read_excel(file, header=None)
@@ -302,8 +323,8 @@ def process_karafrin(file):
 # --- رابط کاربری اصلی ---
 def main():
     st.markdown("""
-        <div style="text-align: center; padding: 10px 0 30px 0;">
-            <h1 style="font-size: 3em; margin-bottom: 5px;">داشبورد مالی کیمیا</h1>
+        <div style="text-align: center; padding: 15px 0 30px 0;">
+            <h1 style="font-size: 3.2em; margin-bottom: 5px;">داشبورد مالی کیمیا</h1>
         </div>
     """, unsafe_allow_html=True)
 
@@ -311,65 +332,97 @@ def main():
 
     # ---------- تب پاسارگاد ----------
     with tab1:
-        st.markdown("### 📑 گزارش مالی بانک پاسارگاد")
-        
-        upl_pasargad = st.file_uploader("فایل اکسل پاسارگاد را اینجا بکشید و رها کنید", type=["xlsx"], key="upl_pasargad")
+        st.markdown("<br>", unsafe_allow_html=True)
+        upl_pasargad = st.file_uploader("فایل اکسل پاسارگاد را اینجا بکشید و رها کنید (Drag & Drop) یا برای انتخاب کلیک کنید", type=["xlsx"], key="upl_pasargad")
         
         if upl_pasargad:
-            if st.button("شروع پردازش پاسارگاد", key="btn_pasargad"):
-                with st.spinner("در حال تحلیل فایل پاسارگاد..."):
-                    res_pasargad, err_pasargad = process_pasargad(upl_pasargad)
+            st.success("✅ فایل با موفقیت آپلود شد و آماده پردازش است.")
+            
+            if st.button("شروع پردازش داده‌های مربوط به فایل بانک پاسارگاد", key="btn_pasargad"):
+                
+                # نمایش نوار پیشرفت و پیام پردازش
+                progress_text = "در حال تحلیل و استخراج داده‌ها از فایل پاسارگاد..."
+                my_bar = st.progress(0, text=progress_text)
+                for percent_complete in range(1, 101, 20):
+                    time.sleep(0.1)
+                    my_bar.progress(percent_complete, text=f"{progress_text} ({percent_complete}%)")
+
+                res_pasargad, err_pasargad = process_pasargad(upl_pasargad)
+                
+                if err_pasargad:
+                    my_bar.empty()
+                    st.error(f"خطا در پردازش: {err_pasargad}")
+                else:
+                    my_bar.progress(100, text="پردازش با موفقیت به اتمام رسید! 💯")
+                    time.sleep(0.5)
+                    my_bar.empty()
                     
-                    if err_pasargad:
-                        st.error(f"خطا در پردازش: {err_pasargad}")
-                    else:
-                        st.success("گزارش پاسارگاد با موفقیت ایجاد شد!")
-                        
-                        disp_pasargad = res_pasargad.copy()
-                        for col in disp_pasargad.columns:
-                            if col != 'تاریخ': disp_pasargad[col] = disp_pasargad[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
-                        
-                        st.dataframe(disp_pasargad, use_container_width=True)
-                        
-                        excel_pasargad = generate_styled_excel(res_pasargad, "Pasargad Report")
-                        st.download_button(
-                            "📥 دانلود گزارش پاسارگاد",
-                            excel_pasargad,
-                            f"Pasargad_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key="dl_pasargad"
-                        )
+                    st.info("✨ فایل گزارش آماده دانلود است. لطفاً از دکمه زیر استفاده کنید:")
+                    
+                    excel_pasargad = generate_styled_excel(res_pasargad, "Pasargad Report")
+                    
+                    # قرارگیری دکمه دانلود قبل از جدول پیش‌نمایش
+                    st.download_button(
+                        "📥 دانلود فایل گزارش مالی بانک پاسارگاد",
+                        excel_pasargad,
+                        f"Pasargad_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_pasargad"
+                    )
+                    
+                    st.markdown("<hr>", unsafe_allow_html=True)
+                    st.markdown("#### پیش‌نمایش داده‌های استخراج شده:")
+                    disp_pasargad = res_pasargad.copy()
+                    for col in disp_pasargad.columns:
+                        if col != 'تاریخ': disp_pasargad[col] = disp_pasargad[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
+                    st.dataframe(disp_pasargad, use_container_width=True)
 
     # ---------- تب کارآفرین ----------
     with tab2:
-        st.markdown("### 📑 گزارش مالی بانک کارآفرین")
-        
-        upl_karafrin = st.file_uploader("فایل اکسل کارآفرین را اینجا بکشید و رها کنید", type=["xlsx"], key="upl_karafrin")
+        st.markdown("<br>", unsafe_allow_html=True)
+        upl_karafrin = st.file_uploader("فایل اکسل کارآفرین را اینجا بکشید و رها کنید (Drag & Drop) یا برای انتخاب کلیک کنید", type=["xlsx"], key="upl_karafrin")
         
         if upl_karafrin:
-            if st.button("شروع پردازش کارآفرین", key="btn_karafrin"):
-                with st.spinner("در حال تحلیل فایل کارآفرین..."):
-                    res_karafrin, err_karafrin = process_karafrin(upl_karafrin)
+            st.success("✅ فایل با موفقیت آپلود شد و آماده پردازش است.")
+            
+            if st.button("شروع پردازش داده‌های مربوط به فایل بانک کارآفرین", key="btn_karafrin"):
+                
+                # نمایش نوار پیشرفت و پیام پردازش
+                progress_text = "در حال تحلیل و استخراج داده‌ها از فایل کارآفرین..."
+                my_bar = st.progress(0, text=progress_text)
+                for percent_complete in range(1, 101, 20):
+                    time.sleep(0.1)
+                    my_bar.progress(percent_complete, text=f"{progress_text} ({percent_complete}%)")
+
+                res_karafrin, err_karafrin = process_karafrin(upl_karafrin)
+                
+                if err_karafrin:
+                    my_bar.empty()
+                    st.error(f"خطا در پردازش: {err_karafrin}")
+                else:
+                    my_bar.progress(100, text="پردازش با موفقیت به اتمام رسید! 💯")
+                    time.sleep(0.5)
+                    my_bar.empty()
                     
-                    if err_karafrin:
-                        st.error(f"خطا در پردازش: {err_karafrin}")
-                    else:
-                        st.success("گزارش کارآفرین با موفقیت ایجاد شد!")
-                        
-                        disp_karafrin = res_karafrin.copy()
-                        for col in disp_karafrin.columns:
-                            if col != 'تاریخ': disp_karafrin[col] = disp_karafrin[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
-                        
-                        st.dataframe(disp_karafrin, use_container_width=True)
-                        
-                        excel_karafrin = generate_styled_excel(res_karafrin, "Karafarin Report")
-                        st.download_button(
-                            "📥 دانلود گزارش کارآفرین",
-                            excel_karafrin,
-                            f"Karafarin_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key="dl_karafrin"
-                        )
+                    st.info("✨ فایل گزارش آماده دانلود است. لطفاً از دکمه زیر استفاده کنید:")
+                    
+                    excel_karafrin = generate_styled_excel(res_karafrin, "Karafarin Report")
+                    
+                    # قرارگیری دکمه دانلود قبل از جدول پیش‌نمایش
+                    st.download_button(
+                        "📥 دانلود فایل گزارش مالی بانک کارآفرین",
+                        excel_karafrin,
+                        f"Karafarin_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_karafrin"
+                    )
+                    
+                    st.markdown("<hr>", unsafe_allow_html=True)
+                    st.markdown("#### پیش‌نمایش داده‌های استخراج شده:")
+                    disp_karafrin = res_karafrin.copy()
+                    for col in disp_karafrin.columns:
+                        if col != 'تاریخ': disp_karafrin[col] = disp_karafrin[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
+                    st.dataframe(disp_karafrin, use_container_width=True)
 
 if __name__ == "__main__":
     main()
