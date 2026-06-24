@@ -277,4 +277,99 @@ def process_karafrin(file):
         
         req_cols = ['Date', 'Description', 'Withdrawal', 'Balance']
         missing = [c for c in req_cols if c not in df.columns]
-        if missing:
+        if missing: return None, f"ستون‌های الزامی یافت نشدند: {', '.join(missing)}"
+
+        df = df.dropna(subset=['Date'])
+        for col in ['Withdrawal', 'Balance']: df[col] = df[col].apply(clean_currency)
+        df['Description'] = df['Description'].fillna("").astype(str)
+        
+        w_keywords = ["انتقال از", "برداشت از"]
+        f_keywords = ["برداشت برای کارمزد", "دریافت کارمزد"]
+
+        def calc_daily(group):
+            w_sum = group[group['Description'].apply(lambda x: any(k in str(x) for k in w_keywords))]['Withdrawal'].sum()
+            f_sum = group[group['Description'].apply(lambda x: any(k in str(x) for k in f_keywords))]['Withdrawal'].sum()
+            first_bal = group['Balance'].iloc[0]
+            return pd.Series({'برداشت روز': w_sum, 'کارمزد': f_sum, 'مانده روز': first_bal})
+
+        result_df = df.groupby('Date', sort=False).apply(calc_daily).reset_index()
+        result_df = result_df.rename(columns={'Date': 'تاریخ'})
+        return result_df, None
+
+    except Exception as e:
+        return None, str(e)
+
+# --- رابط کاربری اصلی ---
+def main():
+    st.markdown("""
+        <div style="text-align: center; padding: 10px 0 30px 0;">
+            <h1 style="font-size: 3em; margin-bottom: 5px;">داشبورد مالی کیمیا</h1>
+        </div>
+    """, unsafe_allow_html=True)
+
+    tab1, tab2 = st.tabs(["🏦 گزارش مالی بانک پاسارگاد", "🏢 گزارش مالی بانک کارآفرین"])
+
+    # ---------- تب پاسارگاد ----------
+    with tab1:
+        st.markdown("### 📑 گزارش مالی بانک پاسارگاد")
+        
+        upl_pasargad = st.file_uploader("فایل اکسل پاسارگاد را اینجا بکشید و رها کنید", type=["xlsx"], key="upl_pasargad")
+        
+        if upl_pasargad:
+            if st.button("شروع پردازش پاسارگاد", key="btn_pasargad"):
+                with st.spinner("در حال تحلیل فایل پاسارگاد..."):
+                    res_pasargad, err_pasargad = process_pasargad(upl_pasargad)
+                    
+                    if err_pasargad:
+                        st.error(f"خطا در پردازش: {err_pasargad}")
+                    else:
+                        st.success("گزارش پاسارگاد با موفقیت ایجاد شد!")
+                        
+                        disp_pasargad = res_pasargad.copy()
+                        for col in disp_pasargad.columns:
+                            if col != 'تاریخ': disp_pasargad[col] = disp_pasargad[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
+                        
+                        st.dataframe(disp_pasargad, use_container_width=True)
+                        
+                        excel_pasargad = generate_styled_excel(res_pasargad, "Pasargad Report")
+                        st.download_button(
+                            "📥 دانلود گزارش پاسارگاد",
+                            excel_pasargad,
+                            f"Pasargad_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key="dl_pasargad"
+                        )
+
+    # ---------- تب کارآفرین ----------
+    with tab2:
+        st.markdown("### 📑 گزارش مالی بانک کارآفرین")
+        
+        upl_karafrin = st.file_uploader("فایل اکسل کارآفرین را اینجا بکشید و رها کنید", type=["xlsx"], key="upl_karafrin")
+        
+        if upl_karafrin:
+            if st.button("شروع پردازش کارآفرین", key="btn_karafrin"):
+                with st.spinner("در حال تحلیل فایل کارآفرین..."):
+                    res_karafrin, err_karafrin = process_karafrin(upl_karafrin)
+                    
+                    if err_karafrin:
+                        st.error(f"خطا در پردازش: {err_karafrin}")
+                    else:
+                        st.success("گزارش کارآفرین با موفقیت ایجاد شد!")
+                        
+                        disp_karafrin = res_karafrin.copy()
+                        for col in disp_karafrin.columns:
+                            if col != 'تاریخ': disp_karafrin[col] = disp_karafrin[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
+                        
+                        st.dataframe(disp_karafrin, use_container_width=True)
+                        
+                        excel_karafrin = generate_styled_excel(res_karafrin, "Karafarin Report")
+                        st.download_button(
+                            "📥 دانلود گزارش کارآفرین",
+                            excel_karafrin,
+                            f"Karafarin_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key="dl_karafrin"
+                        )
+
+if __name__ == "__main__":
+    main()
