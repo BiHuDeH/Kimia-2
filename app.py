@@ -21,27 +21,23 @@ def apply_modern_design():
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;500;700;900&display=swap');
             
-            /* تنظیمات عمومی و راست‌چین */
             html, body, [class*="css"] {
                 font-family: 'Vazirmatn', sans-serif !important;
                 direction: rtl;
                 text-align: right;
             }
             
-            /* پس‌زمینه و رنگ‌بندی مدرن روشن/تیره */
             .stApp {
                 background-color: #f8f9fa;
                 color: #212529;
             }
             
-            /* هدرها */
             h1, h2, h3 {
                 color: #0b3d91 !important;
                 font-weight: 800 !important;
                 text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
             }
 
-            /* زبانه‌ها (Tabs) */
             .stTabs [data-baseweb="tab-list"] {
                 gap: 10px;
                 background-color: #e9ecef;
@@ -63,7 +59,6 @@ def apply_modern_design():
                 color: white !important;
             }
 
-            /* کارت‌های آپلود */
             [data-testid="stFileUploader"] {
                 background-color: white;
                 border: 2px dashed #adb5bd;
@@ -77,7 +72,6 @@ def apply_modern_design():
                 background-color: #f1f5f9;
             }
 
-            /* دکمه‌ها */
             .stButton > button {
                 width: 100%;
                 border-radius: 12px;
@@ -96,13 +90,11 @@ def apply_modern_design():
                 color: white !important;
             }
 
-            /* دکمه دانلود */
             .stDownloadButton > button {
                 background: linear-gradient(135deg, #28a745, #20c997) !important;
                 box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3) !important;
             }
 
-            /* جداول پانداس */
             [data-testid="stDataFrame"] {
                 border-radius: 12px;
                 overflow: hidden;
@@ -148,52 +140,81 @@ def standardize_columns(df, col_map):
     df = df.loc[:, ~df.columns.duplicated()]
     return df
 
-def generate_styled_excel(df, sheet_name="Report", theme_color="TableStyleMedium9"):
+def contains_all_words(text, phrase):
+    """
+    تابع جستجوی هوشمند با عملگر AND
+    این تابع بررسی می‌کند که تمام واژه‌های موجود در یک عبارت، داخل متن (بدون در نظر گرفتن فاصله) وجود داشته باشند.
+    """
+    if pd.isna(text):
+        return False
+    text = str(text)
+    words = phrase.split() # کلمات را بر اساس فاصله از هم جدا می‌کند
+    return all(word in text for word in words)
+
+def match_any_phrase(text, phrases_list):
+    """بررسی اینکه آیا حداقل یکی از عبارات لیست، با شرط AND درون متن صدق می‌کند"""
+    for phrase in phrases_list:
+        if contains_all_words(text, phrase):
+            return True
+    return False
+
+def generate_styled_excel(df, sheet_name="Report"):
+    """تولید خروجی اکسل بر اساس استاندارد فرمت app2.py"""
     output = BytesIO()
     wb = Workbook()
     ws = wb.active
     ws.title = sheet_name
     ws.sheet_view.rightToLeft = True 
 
-    # تنظیم هدرها
-    header_font = Font(bold=True, size=11, name='Tahoma', color="FFFFFF")
+    # تنظیم استایل‌ها
+    header_font = Font(bold=True, size=12, name='Tahoma')
+    regular_font = Font(size=11, name='Tahoma')
     center_align = Alignment(horizontal="center", vertical="center")
+    thin_border_side = Side(style="thin", color="333333")
+    thin_border = Border(left=thin_border_side, right=thin_border_side, top=thin_border_side, bottom=thin_border_side)
     
     headers = list(df.columns)
     ws.append(headers)
+    
+    # اعمال فرمت هدر
+    for cell in ws[1]:
+        cell.font = header_font
+        cell.alignment = center_align
+        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        cell.border = thin_border
     
     # وارد کردن داده‌ها
     for row in df.itertuples(index=False, name=None):
         ws.append(row)
 
-    # استایل‌دهی به سلول‌ها
-    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+    # استایل‌دهی به سلول‌های بدنه
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
         for cell in row:
             cell.alignment = center_align
-            cell.font = Font(size=10, name='Tahoma')
-            if cell.row > 1 and cell.column_letter != 'A':
+            cell.font = regular_font
+            cell.border = thin_border
+            if cell.column_letter != 'A':
                 cell.number_format = '#,##0'
 
-    # تنظیم عرض ستون‌ها
+    # تنظیم عرض یکسان برای همه ستون‌ها
     for col in ws.columns:
-        ws.column_dimensions[col[0].column_letter].width = 20
+        ws.column_dimensions[col[0].column_letter].width = 18
 
     # اعمال تیبل دیزاین اکسل
     if ws.max_row >= 2:
         last_col = get_column_letter(ws.max_column)
         tab = Table(displayName=f"Table_{sheet_name.replace(' ', '_')}", ref=f"A1:{last_col}{ws.max_row}")
-        style = TableStyleInfo(name=theme_color, showFirstColumn=False, showLastColumn=False, showRowStripes=True, showColumnStripes=False)
+        style = TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)
         tab.tableStyleInfo = style
         ws.add_table(tab)
 
     wb.save(output)
     return output.getvalue()
 
-# --- پردازشگر گزارش پاسارگاد (فروش و محاسبات کامل) ---
+# --- پردازشگر گزارش پاسارگاد ---
 @st.cache_data(show_spinner=False)
 def process_pasargad(file):
     try:
-        # پرش از دو سطر اول بر اساس فایل نمونه
         df = pd.read_excel(file, skiprows=2)
         
         expected_columns = [
@@ -216,20 +237,17 @@ def process_pasargad(file):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
 
-        df['Description'] = df['Description'].astype(str)
-        
-        # فیلترهای جدید پاسارگاد
-        card_mask = df['Description'].str.contains("انتقال وجه به سپرده مهران کلانتریان", na=False)
-        fee_mask = df['Description'].str.contains("کارمزد", na=False)
-        withdraw_mask = df['Description'].str.contains("انتقال وجه به سپرده مهران کلانتریان", na=False)
-        snap_mask = df['Description'].str.contains("اطلس", na=False)
+        # اعمال فیلترها با استفاده از تابع هوشمند AND
+        card_mask = df['Description'].apply(lambda x: contains_all_words(x, "انتقال از"))
+        fee_mask = df['Description'].apply(lambda x: contains_all_words(x, "کارمزد"))
+        withdraw_mask = df['Description'].apply(lambda x: contains_all_words(x, "انتقال وجه به سپرده مهران کلانتریان"))
+        snap_mask = df['Description'].apply(lambda x: contains_all_words(x, "غذا اطلس"))
 
         card_sum = df[card_mask].groupby('Date')['Deposit'].sum().reindex(unique_dates, fill_value=0)
         fee_sum = df[fee_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
         withdraw_sum = df[withdraw_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
         snap_sum = df[snap_mask].groupby('Date')['Deposit'].sum().reindex(unique_dates, fill_value=0)
         
-        # مانده آخر روز (بر اساس ترکیب Date و Time)
         end_of_day_balance = df.sort_values(['Date', 'Time']).groupby('Date')['Balance'].last().reindex(unique_dates, fill_value=0)
 
         report = pd.DataFrame(index=unique_dates)
@@ -239,7 +257,6 @@ def process_pasargad(file):
         report['snap'] = snap_sum
         report['balance'] = end_of_day_balance
 
-        # محاسبات فروش و مالیات
         report['sales'] = report['card'] / 1.1
         report['tax'] = report['card'] - report['sales']
 
@@ -257,7 +274,7 @@ def process_pasargad(file):
     except Exception as e:
         return None, str(e)
 
-# --- پردازشگر گزارش کارآفرین (صورتحساب اولیه) ---
+# --- پردازشگر گزارش کارآفرین ---
 @st.cache_data(show_spinner=False)
 def process_karafrin(file):
     try:
@@ -279,15 +296,13 @@ def process_karafrin(file):
 
         df = df.dropna(subset=['Date'])
         for col in ['Withdrawal', 'Balance']: df[col] = df[col].apply(clean_currency)
-        df['Description'] = df['Description'].fillna("").astype(str)
         
-        # فیلترهای اولیه و دست‌نخورده کارآفرین
         w_keywords = ["انتقال از", "برداشت از"]
         f_keywords = ["برداشت برای کارمزد", "دریافت کارمزد"]
 
         def calc_daily(group):
-            w_sum = group[group['Description'].apply(lambda x: any(k in str(x) for k in w_keywords))]['Withdrawal'].sum()
-            f_sum = group[group['Description'].apply(lambda x: any(k in str(x) for k in f_keywords))]['Withdrawal'].sum()
+            w_sum = group[group['Description'].apply(lambda x: match_any_phrase(x, w_keywords))]['Withdrawal'].sum()
+            f_sum = group[group['Description'].apply(lambda x: match_any_phrase(x, f_keywords))]['Withdrawal'].sum()
             first_bal = group['Balance'].iloc[0]
             return pd.Series({'برداشت روز': w_sum, 'کارمزد': f_sum, 'مانده روز': first_bal})
 
@@ -303,7 +318,6 @@ def main():
     st.markdown("""
         <div style="text-align: center; padding: 10px 0 30px 0;">
             <h1 style="font-size: 3em; margin-bottom: 5px;">داشبورد مالی کیمیا</h1>
-            <p style="color: #6c757d; font-size: 1.2em;">سیستم جامع تحلیل تراکنش‌ها و گزارش‌گیری بانکی</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -311,8 +325,7 @@ def main():
 
     # ---------- تب پاسارگاد ----------
     with tab1:
-        st.markdown("### 📑 پردازش صورتحساب بانک پاسارگاد")
-        st.markdown("<p style='color: #666;'>این بخش فایل‌های ۱۳ ستونه را با محاسبه فروش، مالیات و فیلترهای اختصاصی مهران کلانتریان و اطلس پردازش می‌کند.</p>", unsafe_allow_html=True)
+        st.markdown("### 📑 گزارش مالی بانک پاسارگاد")
         
         upl_pasargad = st.file_uploader("فایل اکسل پاسارگاد را اینجا بکشید و رها کنید", type=["xlsx"], key="upl_pasargad")
         
@@ -326,14 +339,13 @@ def main():
                     else:
                         st.success("گزارش پاسارگاد با موفقیت ایجاد شد!")
                         
-                        # نمایش اعداد فارسی
                         disp_pasargad = res_pasargad.copy()
                         for col in disp_pasargad.columns:
                             if col != 'تاریخ': disp_pasargad[col] = disp_pasargad[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
                         
                         st.dataframe(disp_pasargad, use_container_width=True)
                         
-                        excel_pasargad = generate_styled_excel(res_pasargad, "Pasargad", "TableStyleMedium2")
+                        excel_pasargad = generate_styled_excel(res_pasargad, "Pasargad Report")
                         st.download_button(
                             "📥 دانلود گزارش پاسارگاد",
                             excel_pasargad,
@@ -344,8 +356,7 @@ def main():
 
     # ---------- تب کارآفرین ----------
     with tab2:
-        st.markdown("### 📑 پردازش صورتحساب بانک کارآفرین")
-        st.markdown("<p style='color: #666;'>این بخش جهت تفکیک برداشت‌ها و کارمزدها با الگوی کلاسیک و کلمات کلیدی پایه تنظیم شده است.</p>", unsafe_allow_html=True)
+        st.markdown("### 📑 گزارش مالی بانک کارآفرین")
         
         upl_karafrin = st.file_uploader("فایل اکسل کارآفرین را اینجا بکشید و رها کنید", type=["xlsx"], key="upl_karafrin")
         
@@ -359,14 +370,13 @@ def main():
                     else:
                         st.success("گزارش کارآفرین با موفقیت ایجاد شد!")
                         
-                        # نمایش اعداد فارسی
                         disp_karafrin = res_karafrin.copy()
                         for col in disp_karafrin.columns:
                             if col != 'تاریخ': disp_karafrin[col] = disp_karafrin[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
                         
                         st.dataframe(disp_karafrin, use_container_width=True)
                         
-                        excel_karafrin = generate_styled_excel(res_karafrin, "Karafrin", "TableStyleMedium1")
+                        excel_karafrin = generate_styled_excel(res_karafrin, "Karafarin Report")
                         st.download_button(
                             "📥 دانلود گزارش کارآفرین",
                             excel_karafrin,
@@ -374,8 +384,6 @@ def main():
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             key="dl_karafrin"
                         )
-
-    st.markdown("<div style='text-align: center; color: #adb5bd; margin-top: 40px; font-size: 0.85em;'>© 2026 Kimia Finance Dashboard | Version 8.0 Premium UI</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
