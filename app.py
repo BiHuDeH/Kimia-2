@@ -70,15 +70,10 @@ def apply_modern_design():
                 transition: all 0.3s ease;
             }
             
-            /* رنگ دکمه‌های مختلف برای تفکیک در UI */
-            div[key="btn_2"] .stButton > button {
+            /* رنگ دکمه بخش دوم برای تفکیک در UI */
+            div[data-testid="stVerticalBlock"] > div:nth-child(3) .stButton > button {
                  background: linear-gradient(90deg, #0072ff, #00c6ff);
                  box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3);
-            }
-            
-            div[key="btn_3"] .stButton > button {
-                 background: linear-gradient(90deg, #b000ff, #e100ff);
-                 box-shadow: 0 4px 15px rgba(176, 0, 255, 0.3);
             }
 
             .stButton > button:hover {
@@ -209,72 +204,8 @@ def generate_excel_download(df, sheet_name="Report", header_color="FF8800"):
 # --- توابع پردازش ---
 
 @st.cache_data(show_spinner=False)
-def process_sales_data(file):
-    try:
-        df_temp = pd.read_excel(file, header=None)
-        header_row = find_header_row(df_temp, ["Date", "تاریخ"])
-        df = pd.read_excel(file, header=header_row)
-        
-        col_map = {
-            'Deposit': ['واریز', 'بستانکار', 'Deposit', 'مبلغ واریز'],
-            'Withdrawal': ['برداشت', 'بدهکار', 'Withdrawal', 'مبلغ برداشت'],
-            'Balance': ['مانده', 'Balance', 'مانده حساب'],
-            'Description': ['شرح', 'توضیحات', 'Description', 'شرح تراکنش'],
-            'Date': ['تاریخ', 'Date', 'تاریخ تراکنش']
-        }
-        
-        df = standardize_columns(df, col_map)
-        
-        if 'Date' not in df.columns:
-            return None, "ستون تاریخ (Date) یافت نشد."
-
-        df = df.dropna(subset=['Date'])
-        for col in ['Deposit', 'Withdrawal', 'Balance']:
-            if col in df.columns:
-                df[col] = df[col].apply(clean_currency)
-        
-        df['Description'] = df['Description'].fillna("").astype(str)
-
-        card_mask = df['Description'].str.contains("انتقال از", na=False)
-        fee_mask = df['Description'].str.contains("کارمزد", na=False)
-        withdraw_mask = df['Description'].str.contains("انتقال وجه به مهران کلانتریان", na=False)
-        snap_mask = df['Description'].str.contains("اطلس", na=False)
-
-        dates = df['Date'].unique()
-        rep = pd.DataFrame(index=dates)
-        
-        rep['card'] = df[card_mask].groupby('Date')['Deposit'].sum()
-        rep['fee'] = df[fee_mask].groupby('Date')['Withdrawal'].sum()
-        rep['withdraw'] = df[withdraw_mask].groupby('Date')['Withdrawal'].sum()
-        rep['snap'] = df[snap_mask].groupby('Date')['Deposit'].sum()
-        
-        rep['balance'] = df.groupby('Date')['Balance'].last() if 'Balance' in df.columns else 0
-
-        rep = rep.fillna(0)
-        rep['sales'] = rep['card'] / 1.1
-        rep['tax'] = rep['card'] - rep['sales']
-        
-        final_df = rep.reset_index().rename(columns={'index': 'تاریخ'})
-        rename_map = {
-            'Date': 'تاریخ', 'card': 'کارت به کارت', 'sales': 'فروش',
-            'tax': 'مالیات', 'fee': 'کارمزد', 'withdraw': 'برداشت روز',
-            'balance': 'مانده آخر روز', 'snap': 'واریزی اسنپ'
-        }
-        final_df = final_df.rename(columns=rename_map)
-        
-        cols_order = ['تاریخ', 'کارت به کارت', 'فروش', 'مالیات', 'کارمزد', 'برداشت روز', 'مانده آخر روز', 'واریزی اسنپ']
-        for col in cols_order:
-            if col not in final_df.columns:
-                final_df[col] = 0
-                
-        return final_df[cols_order], None
-
-    except Exception as e:
-        return None, str(e)
-
-@st.cache_data(show_spinner=False)
-def process_statement_data(file):
-    """آنالیز صورتحساب با عبارات قدیمی"""
+def process_statement_pasargad(file):
+    """آنالیز صورتحساب بانک پاسارگاد با عبارات کلیدی اولیه"""
     try:
         df_temp = pd.read_excel(file, header=None)
         header_row = find_header_row(df_temp, ["Date", "تاریخ"])
@@ -328,8 +259,8 @@ def process_statement_data(file):
         return None, str(e)
 
 @st.cache_data(show_spinner=False)
-def process_statement_data_new(file):
-    """آنالیز صورتحساب با عبارات جدید مشخص‌شده"""
+def process_statement_karafrin(file):
+    """آنالیز صورتحساب بانک کارآفرین با عبارات کلیدی اولیه"""
     try:
         df_temp = pd.read_excel(file, header=None)
         header_row = find_header_row(df_temp, ["Date", "تاریخ"])
@@ -354,9 +285,9 @@ def process_statement_data_new(file):
             df[col] = df[col].apply(clean_currency)
         df['Description'] = df['Description'].fillna("").astype(str)
         
-        # استفاده از عبارات فیلتر جدید در صورتحساب
-        w_keywords = ["انتقال وجه به مهران کلانتریان"]
-        f_keywords = ["اطلس"]
+        # استفاده مجدد از کلمات کلیدی اولیه مطابق درخواست
+        w_keywords = ["انتقال از", "برداشت از"]
+        f_keywords = ["برداشت برای کارمزد", "دریافت کارمزد"]
 
         def calc_daily(group):
             w_sum = group[
@@ -395,100 +326,69 @@ def main():
         </div>
     """, unsafe_allow_html=True)
 
-    # --- بخش اول: گزارش فروش ---
+    # --- بخش اول: گزارش مالی بانک پاسارگاد ---
     st.markdown('<div class="modern-card">', unsafe_allow_html=True)
-    st.markdown("### 📊 بخش اول: گزارش فروش")
-    st.markdown("محاسبه فروش خالص، مالیات و واریزی‌ها با فیلترهای اختصاصی.")
+    st.markdown("### 🏦 بخش اول: گزارش مالی بانک پاسارگاد")
+    st.markdown("تفکیک برداشت‌های روزانه و کارمزدها بر اساس کلمات کلیدی اولیه حساب پاسارگاد.")
     
-    upl_file_1 = st.file_uploader("انتخاب فایل اکسل فروش", type=["xlsx"], key="upl_1")
+    upl_file_1 = st.file_uploader("انتخاب فایل اکسل صورتحساب بانک پاسارگاد", type=["xlsx"], key="upl_1")
     
     if upl_file_1:
-        if st.button("شروع پردازش فروش", key="btn_1"):
-            with st.spinner("در حال تحلیل داده‌ها..."):
-                res_df, err = process_sales_data(upl_file_1)
+        if st.button("شروع پردازش بانک پاسارگاد", key="btn_1"):
+            with st.spinner("در حال محاسبه مقادیر بانک پاسارگاد..."):
+                res_df, err = process_statement_pasargad(upl_file_1)
                 if err:
                     st.error(f"خطا: {err}")
                 else:
-                    st.success("پردازش با موفقیت انجام شد")
+                    st.success("تحلیل صورتحساب بانک پاسارگاد تکمیل شد")
                     display_df = res_df.copy()
                     for col in display_df.columns:
                         if col != 'تاریخ':
                             display_df[col] = display_df[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
                     st.dataframe(display_df, use_container_width=True)
                     
-                    excel_data = generate_excel_download(res_df, "Sales Report", "FF8800")
+                    excel_data = generate_excel_download(res_df, "Pasargad Analysis", "FF8800")
                     st.download_button(
-                        "📥 دانلود فایل اکسل نهایی فروش",
+                        "📥 دانلود فایل اکسل نهایی بانک پاسارگاد",
                         excel_data,
-                        f"Sales_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                        f"Pasargad_Financial_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key="dl_1"
                     )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- بخش دوم: گزارش صورتحساب ---
+    # --- بخش دوم: گزارش مالی بانک کارآفرین ---
     st.markdown('<div class="modern-card" style="border-top: 4px solid #0072ff;">', unsafe_allow_html=True)
-    st.markdown("### 📈 بخش دوم: گزارش صورتحساب (عبارات قدیمی)")
-    st.markdown("تفکیک برداشت‌های روزانه و کارمزدها بر اساس کلمات کلیدی اولیه حساب.")
+    st.markdown("### 🏢 بخش دوم: گزارش مالی بانک کارآفرین")
+    st.markdown("تفکیک برداشت‌های روزانه و کارمزدها بر اساس کلمات کلیدی اولیه حساب کارآفرین.")
 
-    upl_file_2 = st.file_uploader("انتخاب فایل اکسل صورتحساب", type=["xlsx"], key="upl_2")
+    upl_file_2 = st.file_uploader("انتخاب فایل اکسل صورتحساب بانک کارآفرین", type=["xlsx"], key="upl_2")
     
     if upl_file_2:
-        if st.button("شروع پردازش صورتحساب", key="btn_2"):
-            with st.spinner("در حال محاسبه مقادیر..."):
-                res_df_2, err_2 = process_statement_data(upl_file_2)
+        if st.button("شروع پردازش بانک کارآفرین", key="btn_2"):
+            with st.spinner("در حال محاسبه مقادیر بانک کارآفرین..."):
+                res_df_2, err_2 = process_statement_karafrin(upl_file_2)
                 if err_2:
                     st.error(f"خطا: {err_2}")
                 else:
-                    st.success("تحلیل صورتحساب تکمیل شد")
+                    st.success("تحلیل صورتحساب بانک کارآفرین تکمیل شد")
                     display_df_2 = res_df_2.copy()
                     for col in display_df_2.columns:
                         if col != 'تاریخ':
                             display_df_2[col] = display_df_2[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
                     st.dataframe(display_df_2, use_container_width=True)
                     
-                    excel_data_2 = generate_excel_download(res_df_2, "Statement Analysis", "0072ff")
+                    excel_data_2 = generate_excel_download(res_df_2, "Karafrin Analysis", "0072ff")
                     st.download_button(
-                        "📥 دانلود فایل اکسل نهایی صورتحساب",
+                        "📥 دانلود فایل اکسل نهایی بانک کارآفرین",
                         excel_data_2,
-                        f"Statement_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                        f"Karafrin_Financial_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key="dl_2"
                     )
     st.markdown('</div>', unsafe_allow_html=True)
-
-    # --- بخش سوم: گزارش صورتحساب جدید ---
-    st.markdown('<div class="modern-card" style="border-top: 4px solid #b000ff;">', unsafe_allow_html=True)
-    st.markdown("### 📑 بخش سوم: گزارش صورتحساب جدید (عبارات جدید)")
-    st.markdown("تفکیک برداشت‌ها و کارمزدها بر اساس فیلترهای جدید (مهران کلانتریان و اطلس).")
-
-    upl_file_3 = st.file_uploader("انتخاب فایل اکسل صورتحساب جدید", type=["xlsx"], key="upl_3")
     
-    if upl_file_3:
-        if st.button("شروع پردازش صورتحساب جدید", key="btn_3"):
-            with st.spinner("در حال تحلیل با معیارهای جدید..."):
-                res_df_3, err_3 = process_statement_data_new(upl_file_3)
-                if err_3:
-                    st.error(f"خطا: {err_3}")
-                else:
-                    st.success("تحلیل صورتحساب جدید با موفقیت انجام شد")
-                    display_df_3 = res_df_3.copy()
-                    for col in display_df_3.columns:
-                        if col != 'تاریخ':
-                            display_df_3[col] = display_df_3[col].apply(lambda x: to_persian_num(f"{x:,.0f}"))
-                    st.dataframe(display_df_3, use_container_width=True)
-                    
-                    excel_data_3 = generate_excel_download(res_df_3, "New Statement Analysis", "b000ff")
-                    st.download_button(
-                        "📥 دانلود فایل اکسل نهایی صورتحساب جدید",
-                        excel_data_3,
-                        f"New_Statement_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="dl_3"
-                    )
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown("<div style='text-align: center; color: #555; font-size: 0.8rem; margin-top: 3rem;'>© 2026 Kimia Finance | v5.5</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #555; font-size: 0.8rem; margin-top: 3rem;'>© 2026 Kimia Finance | v7.1 Bank Unified</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
