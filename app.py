@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- استایل‌دهی پیشرفته (تم توسی تیره و حل مشکل آپلودر) ---
+# --- استایل‌دهی پیشرفته (تم توسی تیره و حل مشکل نوشته دکمه آپلودر) ---
 def apply_modern_design():
     st.markdown("""
         <style>
@@ -39,7 +39,7 @@ def apply_modern_design():
                 color: #e2e8f0 !important;
             }
             h1 {
-                color: #60a5fa !important; /* آبی روشن برای جلوه در تم تیره */
+                color: #60a5fa !important; 
                 text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
             }
 
@@ -65,7 +65,7 @@ def apply_modern_design():
                 color: #ffffff !important;
             }
 
-            /* --------- حل مشکل سیاهی باکس آپلود فایل --------- */
+            /* باکس آپلود فایل */
             [data-testid="stFileUploader"] {
                 background-color: #343a40 !important;
                 border: 2px dashed #6c757d !important;
@@ -90,9 +90,8 @@ def apply_modern_design():
                 font-size: 14px !important;
             }
             
-            /* فارسی‌سازی و استایل دکمه Browse files در استریم‌لایت */
+            /* --------- حل مشکل روی هم افتادن نوشته دکمه --------- */
             [data-testid="stFileUploader"] button[kind="secondary"] {
-                color: transparent !important;
                 background-color: #2563eb !important;
                 border: none !important;
                 position: relative;
@@ -100,6 +99,12 @@ def apply_modern_design():
                 height: 40px;
                 border-radius: 8px;
             }
+            /* مخفی کردن کامل نوشته انگلیسی پیش‌فرض (Browse files) */
+            [data-testid="stFileUploader"] button[kind="secondary"] div, 
+            [data-testid="stFileUploader"] button[kind="secondary"] span {
+                display: none !important;
+            }
+            /* افزودن نوشته فارسی جدید */
             [data-testid="stFileUploader"] button[kind="secondary"]::after {
                 content: "انتخاب فایل";
                 color: white !important;
@@ -110,6 +115,7 @@ def apply_modern_design():
                 font-family: 'Vazirmatn', sans-serif;
                 font-size: 15px;
                 font-weight: bold;
+                display: block !important;
             }
             /* ---------------------------------------------------- */
 
@@ -281,7 +287,7 @@ def process_pasargad(file):
         card_to_card_mask = df['Description'].str.contains("انتقال از", na=False)
         fee_mask = df['Description'].str.contains("کارمزد", na=False)
         daily_withdrawal_mask = df['Description'].str.contains("انتقال وجه به سپرده 379.8000.10822179.1 به نام سپرده كوتاه مدت - مهران کلانتريان_سامانه بانکداری نوین", na=False)
-        snap_deposit_mask = df['Description'].str.contains("غذا", na=False) & df['Description'].str.contains("اطلس", na=False)
+        snap_deposit_mask = df['Description'].apply(lambda x: contains_all_words(x, "غذا اطلس"))
 
         card_to_card_sum = df[card_to_card_mask].groupby('Date')['Deposit'].sum().reindex(unique_dates, fill_value=0)
         fee_sum = df[fee_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
