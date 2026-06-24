@@ -147,7 +147,8 @@ def find_header_row(df, keywords):
     """یافتن هوشمند سطر هدر"""
     for i in range(min(20, len(df))):
         row_values = df.iloc[i].astype(str).tolist()
-        if any(keyword in val for val in row_values for keyword in keywords):
+        # استفاده از str() برای اطمینان کامل از عدم بروز خطای float iteration
+        if any(str(keyword) in str(val) for val in row_values for keyword in keywords):
             return i
     return 0
 
@@ -161,7 +162,7 @@ def standardize_columns(df, col_map):
         for col in df.columns:
             if col in used_columns:
                 continue
-            if any(alias in col for alias in aliases):
+            if any(str(alias) in str(col) for alias in aliases):
                 rename_dict[col] = std_name
                 used_columns.add(col)
                 break 
@@ -229,7 +230,7 @@ def process_sales_data(file):
         
         df['Description'] = df['Description'].fillna("").astype(str)
 
-        # فیلترها
+        # فیلترها (به دلیل استفاده از na=False نیازی به تغییر ندارند)
         card_mask = df['Description'].str.contains("انتقال از", na=False)
         fee_mask = df['Description'].str.contains("کارمزد", na=False)
         withdraw_mask = df['Description'].str.contains("انتقال وجه", na=False)
@@ -243,8 +244,6 @@ def process_sales_data(file):
         rep['withdraw'] = df[withdraw_mask].groupby('Date')['Withdrawal'].sum()
         rep['snap'] = df[snap_mask].groupby('Date')['Deposit'].sum()
         
-        # در بخش فروش، مانده معمولاً آخرین تراکنش است (منطق قبلی حفظ شد مگر اینکه اینجا هم نیاز به تغییر باشد)
-        # فرض بر این است که تغییر خواسته شده فقط مربوط به بخش دوم (صورتحساب) است.
         rep['balance'] = df.groupby('Date')['Balance'].last() if 'Balance' in df.columns else 0
 
         rep = rep.fillna(0)
@@ -295,38 +294,28 @@ def process_statement_data(file):
         for col in ['Withdrawal', 'Balance']:
             df[col] = df[col].apply(clean_currency)
         df['Description'] = df['Description'].fillna("").astype(str)
-
-        # نکته مهم: طبق درخواست کاربر، مرتب‌سازی زمانی حذف شد تا ترتیب فایل اکسل حفظ شود.
-        # "اولین سطر" در فایل اکسل برای هر تاریخ ملاک است.
-        # if 'Time' in df.columns:
-        #     df = df.sort_values(by=['Date', 'Time'])
         
         w_keywords = ["انتقال از", "برداشت از"]
         f_keywords = ["برداشت برای کارمزد", "دریافت کارمزد"]
 
         def calc_daily(group):
-            # محاسبه جمع برداشت‌ها
+            # تبدیل صریح به رشته با str(x) برای جلوگیری از خطای float
             w_sum = group[
-                group['Description'].apply(lambda x: any(k in x for k in w_keywords))
+                group['Description'].apply(lambda x: any(k in str(x) for k in w_keywords))
             ]['Withdrawal'].sum()
 
-            # محاسبه جمع کارمزدها
             f_sum = group[
-                group['Description'].apply(lambda x: any(k in x for k in f_keywords))
+                group['Description'].apply(lambda x: any(k in str(x) for k in f_keywords))
             ]['Withdrawal'].sum()
 
-            # اصلاح منطق: مانده روز = اولین سطر موجود در فایل برای آن تاریخ
-            # با فرض اینکه فایل بانکی نزولی (جدید به قدیم) است، اولین سطر معمولاً آخرین تراکنش است.
             first_bal = group['Balance'].iloc[0]
 
             return pd.Series({
                 'برداشت روز': w_sum,
-                'کارمزد': f_sum, # تغییر نام ستون طبق درخواست
+                'کارمزد': f_sum, 
                 'مانده روز': first_bal
             })
 
-        # نکته: groupby در پانداس ترتیب گروه ها را بر اساس کلید مرتب میکند، اما ترتیب سطرها داخل هر گروه 
-        # (اگر sort=False نباشد) حفظ می‌شود.
         result_df = df.groupby('Date', sort=False).apply(calc_daily).reset_index()
         result_df = result_df.rename(columns={'Date': 'تاریخ'})
         
