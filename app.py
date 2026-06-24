@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- استایل‌دهی پیشرفته (UI/UX) ---
+# --- استایل‌دهی پیشرفته (تم توسی تیره و حل مشکل آپلودر) ---
 def apply_modern_design():
     st.markdown("""
         <style>
@@ -28,63 +28,92 @@ def apply_modern_design():
                 text-align: right;
             }
             
-            /* پس‌زمینه توسی ملایم و خوانا */
+            /* پس‌زمینه کل صفحه به توسی تیره */
             .stApp {
-                background-color: #eaedf2; 
-                color: #212529;
+                background-color: #262b30 !important; 
+                color: #f8f9fa !important;
             }
             
-            h1, h2, h3 {
-                color: #0b3d91 !important;
-                font-weight: 800 !important;
-                text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+            /* هدرها و متون عمومی */
+            h1, h2, h3, p, span, div {
+                color: #e2e8f0 !important;
+            }
+            h1 {
+                color: #60a5fa !important; /* آبی روشن برای جلوه در تم تیره */
+                text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
             }
 
+            /* استایل تب‌ها (زبانه‌ها) در تم تیره */
             .stTabs [data-baseweb="tab-list"] {
                 gap: 10px;
-                background-color: #dce1e8;
+                background-color: #1e2429 !important;
                 padding: 10px 10px 0 10px;
                 border-radius: 12px 12px 0 0;
             }
             .stTabs [data-baseweb="tab"] {
                 height: 50px;
-                background-color: #ffffff;
+                background-color: #343a40 !important;
                 border-radius: 8px 8px 0 0;
                 padding: 10px 20px;
                 font-weight: bold;
-                color: #495057;
-                border: 1px solid #ced4da;
-                border-bottom: none;
+                color: #adb5bd !important;
+                border: 1px solid #495057 !important;
+                border-bottom: none !important;
             }
             .stTabs [aria-selected="true"] {
-                background-color: #0b3d91 !important;
-                color: white !important;
+                background-color: #3b82f6 !important;
+                color: #ffffff !important;
             }
 
-            /* اصلاح رنگ باکس آپلود فایل برای جلوگیری از سیاه شدن در حالت دارک مود */
+            /* --------- حل مشکل سیاهی باکس آپلود فایل --------- */
             [data-testid="stFileUploader"] {
-                background-color: #ffffff !important;
-                border: 2px dashed #0b3d91 !important;
+                background-color: #343a40 !important;
+                border: 2px dashed #6c757d !important;
                 border-radius: 15px !important;
-                padding: 30px !important;
+                padding: 20px !important;
                 transition: all 0.3s ease;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             }
             [data-testid="stFileUploader"]:hover {
-                border-color: #ff8800 !important;
-                background-color: #f8fbff !important;
+                border-color: #60a5fa !important;
+                background-color: #3b4249 !important;
             }
-            /* اجبار به رنگ متن تیره برای المان‌های داخل باکس آپلود */
-            [data-testid="stFileUploader"] * {
-                color: #1e293b !important;
-                font-family: 'Vazirmatn', sans-serif !important;
+            
+            /* رنگ‌بندی پس‌زمینه فایلی که درگ شده یا انتخاب شده */
+            [data-testid="stFileUploader"] section {
+                background-color: #495057 !important;
+                border-radius: 8px;
             }
-            [data-testid="stFileUploader"] small {
-                color: #64748b !important;
+            
+            /* متن‌های داخل آپلودر */
+            [data-testid="stFileUploader"] small, [data-testid="stFileUploader"] div {
+                color: #f8f9fa !important;
                 font-size: 14px !important;
             }
+            
+            /* فارسی‌سازی و استایل دکمه Browse files در استریم‌لایت */
+            [data-testid="stFileUploader"] button[kind="secondary"] {
+                color: transparent !important;
+                background-color: #2563eb !important;
+                border: none !important;
+                position: relative;
+                width: 160px;
+                height: 40px;
+                border-radius: 8px;
+            }
+            [data-testid="stFileUploader"] button[kind="secondary"]::after {
+                content: "انتخاب فایل";
+                color: white !important;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-family: 'Vazirmatn', sans-serif;
+                font-size: 15px;
+                font-weight: bold;
+            }
+            /* ---------------------------------------------------- */
 
-            /* دکمه‌های اصلی */
+            /* دکمه‌های اصلی پردازش */
             .stButton > button {
                 width: 100%;
                 border-radius: 12px;
@@ -92,41 +121,39 @@ def apply_modern_design():
                 font-size: 17px;
                 font-weight: 700;
                 color: white !important;
-                background: linear-gradient(135deg, #0b3d91, #1e90ff);
-                border: none;
-                box-shadow: 0 4px 15px rgba(11, 61, 145, 0.3);
-                transition: transform 0.2s ease, box-shadow 0.2s ease;
+                background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+                border: none !important;
+                box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+                transition: transform 0.2s ease;
             }
             .stButton > button:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 6px 20px rgba(11, 61, 145, 0.4);
+                box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
             }
 
             /* دکمه دانلود برجسته */
             .stDownloadButton > button {
-                background: linear-gradient(135deg, #10b981, #059669) !important;
+                background: linear-gradient(135deg, #059669, #10b981) !important;
                 box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
-                border: 2px solid #047857 !important;
                 height: 60px;
                 font-size: 18px;
-            }
-            .stDownloadButton > button:hover {
-                background: linear-gradient(135deg, #059669, #047857) !important;
+                border: 2px solid #047857 !important;
             }
 
+            /* جداول پانداس در تم تیره */
             [data-testid="stDataFrame"] {
+                background-color: #343a40 !important;
                 border-radius: 12px;
-                overflow: hidden;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                border: 1px solid #e2e8f0;
-                background-color: #ffffff;
+                border: 1px solid #495057;
+            }
+            th {
+                background-color: #212529 !important;
+                color: #ffffff !important;
+            }
+            td {
+                color: #e2e8f0 !important;
             }
             
-            /* پیام‌های آلرت */
-            [data-testid="stAlert"] {
-                border-radius: 10px;
-                font-weight: 500;
-            }
         </style>
     """, unsafe_allow_html=True)
 
@@ -168,6 +195,7 @@ def standardize_columns(df, col_map):
     return df
 
 def contains_all_words(text, phrase):
+    """جستجوی هوشمند و ترکیب کلمات با عملگر AND"""
     if pd.isna(text): return False
     text = str(text)
     words = phrase.split()
@@ -186,7 +214,6 @@ def generate_styled_excel(df, sheet_name="Report"):
     ws.title = sheet_name
     ws.sheet_view.rightToLeft = True 
 
-    # استفاده از فونت Vazirmatn برای اکسل
     header_font = Font(bold=True, size=12, name='Vazirmatn')
     regular_font = Font(size=11, name='Vazirmatn')
     center_align = Alignment(horizontal="center", vertical="center")
@@ -308,8 +335,8 @@ def process_karafrin(file):
         f_keywords = ["برداشت برای کارمزد", "دریافت کارمزد"]
 
         def calc_daily(group):
-            w_sum = group[group['Description'].apply(lambda x: any(k in str(x) for k in w_keywords))]['Withdrawal'].sum()
-            f_sum = group[group['Description'].apply(lambda x: any(k in str(x) for k in f_keywords))]['Withdrawal'].sum()
+            w_sum = group[group['Description'].apply(lambda x: match_any_phrase(x, w_keywords))]['Withdrawal'].sum()
+            f_sum = group[group['Description'].apply(lambda x: match_any_phrase(x, f_keywords))]['Withdrawal'].sum()
             first_bal = group['Balance'].iloc[0]
             return pd.Series({'برداشت روز': w_sum, 'کارمزد': f_sum, 'مانده روز': first_bal})
 
@@ -325,6 +352,7 @@ def main():
     st.markdown("""
         <div style="text-align: center; padding: 15px 0 30px 0;">
             <h1 style="font-size: 3.2em; margin-bottom: 5px;">داشبورد مالی کیمیا</h1>
+            <p style="color: #adb5bd; font-size: 1.1em;">سیستم پردازش هوشمند صورتحساب‌ها</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -336,11 +364,10 @@ def main():
         upl_pasargad = st.file_uploader("فایل اکسل پاسارگاد را اینجا بکشید و رها کنید (Drag & Drop) یا برای انتخاب کلیک کنید", type=["xlsx"], key="upl_pasargad")
         
         if upl_pasargad:
-            st.success("✅ فایل با موفقیت آپلود شد و آماده پردازش است.")
+            st.success("✅ فایل با موفقیت دریافت شد.")
             
             if st.button("شروع پردازش داده‌های مربوط به فایل بانک پاسارگاد", key="btn_pasargad"):
                 
-                # نمایش نوار پیشرفت و پیام پردازش
                 progress_text = "در حال تحلیل و استخراج داده‌ها از فایل پاسارگاد..."
                 my_bar = st.progress(0, text=progress_text)
                 for percent_complete in range(1, 101, 20):
@@ -361,7 +388,6 @@ def main():
                     
                     excel_pasargad = generate_styled_excel(res_pasargad, "Pasargad Report")
                     
-                    # قرارگیری دکمه دانلود قبل از جدول پیش‌نمایش
                     st.download_button(
                         "📥 دانلود فایل گزارش مالی بانک پاسارگاد",
                         excel_pasargad,
@@ -370,7 +396,7 @@ def main():
                         key="dl_pasargad"
                     )
                     
-                    st.markdown("<hr>", unsafe_allow_html=True)
+                    st.markdown("<hr style='border-color: #495057;'>", unsafe_allow_html=True)
                     st.markdown("#### پیش‌نمایش داده‌های استخراج شده:")
                     disp_pasargad = res_pasargad.copy()
                     for col in disp_pasargad.columns:
@@ -383,11 +409,10 @@ def main():
         upl_karafrin = st.file_uploader("فایل اکسل کارآفرین را اینجا بکشید و رها کنید (Drag & Drop) یا برای انتخاب کلیک کنید", type=["xlsx"], key="upl_karafrin")
         
         if upl_karafrin:
-            st.success("✅ فایل با موفقیت آپلود شد و آماده پردازش است.")
+            st.success("✅ فایل با موفقیت دریافت شد.")
             
             if st.button("شروع پردازش داده‌های مربوط به فایل بانک کارآفرین", key="btn_karafrin"):
                 
-                # نمایش نوار پیشرفت و پیام پردازش
                 progress_text = "در حال تحلیل و استخراج داده‌ها از فایل کارآفرین..."
                 my_bar = st.progress(0, text=progress_text)
                 for percent_complete in range(1, 101, 20):
@@ -408,7 +433,6 @@ def main():
                     
                     excel_karafrin = generate_styled_excel(res_karafrin, "Karafarin Report")
                     
-                    # قرارگیری دکمه دانلود قبل از جدول پیش‌نمایش
                     st.download_button(
                         "📥 دانلود فایل گزارش مالی بانک کارآفرین",
                         excel_karafrin,
@@ -417,7 +441,7 @@ def main():
                         key="dl_karafrin"
                     )
                     
-                    st.markdown("<hr>", unsafe_allow_html=True)
+                    st.markdown("<hr style='border-color: #495057;'>", unsafe_allow_html=True)
                     st.markdown("#### پیش‌نمایش داده‌های استخراج شده:")
                     disp_karafrin = res_karafrin.copy()
                     for col in disp_karafrin.columns:
