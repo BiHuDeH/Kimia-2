@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- استایل‌دهی پیشرفته (تم توسی تیره و حل مشکل نوشته دکمه آپلودر) ---
+# --- استایل‌دهی پیشرفته ---
 def apply_modern_design():
     st.markdown("""
         <style>
@@ -28,13 +28,11 @@ def apply_modern_design():
                 text-align: right;
             }
             
-            /* پس‌زمینه کل صفحه به توسی تیره */
             .stApp {
                 background-color: #262b30 !important; 
                 color: #f8f9fa !important;
             }
             
-            /* هدرها و متون عمومی */
             h1, h2, h3, p, span, div {
                 color: #e2e8f0 !important;
             }
@@ -43,7 +41,6 @@ def apply_modern_design():
                 text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
             }
 
-            /* استایل تب‌ها (زبانه‌ها) در تم تیره */
             .stTabs [data-baseweb="tab-list"] {
                 gap: 10px;
                 background-color: #1e2429 !important;
@@ -65,7 +62,6 @@ def apply_modern_design():
                 color: #ffffff !important;
             }
 
-            /* باکس آپلود فایل */
             [data-testid="stFileUploader"] {
                 background-color: #343a40 !important;
                 border: 2px dashed #6c757d !important;
@@ -78,19 +74,16 @@ def apply_modern_design():
                 background-color: #3b4249 !important;
             }
             
-            /* رنگ‌بندی پس‌زمینه فایلی که درگ شده یا انتخاب شده */
             [data-testid="stFileUploader"] section {
                 background-color: #495057 !important;
                 border-radius: 8px;
             }
             
-            /* متن‌های داخل آپلودر */
             [data-testid="stFileUploader"] small, [data-testid="stFileUploader"] div {
                 color: #f8f9fa !important;
                 font-size: 14px !important;
             }
             
-            /* --------- حل مشکل روی هم افتادن نوشته دکمه --------- */
             [data-testid="stFileUploader"] button[kind="secondary"] {
                 background-color: #2563eb !important;
                 border: none !important;
@@ -99,12 +92,10 @@ def apply_modern_design():
                 height: 40px;
                 border-radius: 8px;
             }
-            /* مخفی کردن کامل نوشته انگلیسی پیش‌فرض (Browse files) */
             [data-testid="stFileUploader"] button[kind="secondary"] div, 
             [data-testid="stFileUploader"] button[kind="secondary"] span {
                 display: none !important;
             }
-            /* افزودن نوشته فارسی جدید */
             [data-testid="stFileUploader"] button[kind="secondary"]::after {
                 content: "انتخاب فایل";
                 color: white !important;
@@ -117,9 +108,7 @@ def apply_modern_design():
                 font-weight: bold;
                 display: block !important;
             }
-            /* ---------------------------------------------------- */
 
-            /* دکمه‌های اصلی پردازش */
             .stButton > button {
                 width: 100%;
                 border-radius: 12px;
@@ -137,7 +126,6 @@ def apply_modern_design():
                 box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
             }
 
-            /* دکمه دانلود برجسته */
             .stDownloadButton > button {
                 background: linear-gradient(135deg, #059669, #10b981) !important;
                 box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
@@ -146,7 +134,6 @@ def apply_modern_design():
                 border: 2px solid #047857 !important;
             }
 
-            /* جداول پانداس در تم تیره */
             [data-testid="stDataFrame"] {
                 background-color: #343a40 !important;
                 border-radius: 12px;
@@ -201,7 +188,6 @@ def standardize_columns(df, col_map):
     return df
 
 def contains_all_words(text, phrase):
-    """جستجوی هوشمند و ترکیب کلمات با عملگر AND"""
     if pd.isna(text): return False
     text = str(text)
     words = phrase.split()
@@ -220,9 +206,13 @@ def generate_styled_excel(df, sheet_name="Report"):
     ws.title = sheet_name
     ws.sheet_view.rightToLeft = True 
 
-    header_font = Font(bold=True, size=12, name='Vazirmatn')
-    regular_font = Font(size=11, name='Vazirmatn')
-    center_align = Alignment(horizontal="center", vertical="center")
+    # تنظیمات فونت Calibri سایز ۱۱
+    header_font = Font(bold=True, size=11, name='Calibri')
+    regular_font = Font(size=11, name='Calibri')
+    
+    # تنظیمات وسط‌چین (عمودی و افقی)
+    center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    
     thin_border_side = Side(style="thin", color="333333")
     thin_border = Border(left=thin_border_side, right=thin_border_side, top=thin_border_side, bottom=thin_border_side)
     
@@ -232,7 +222,6 @@ def generate_styled_excel(df, sheet_name="Report"):
     for cell in ws[1]:
         cell.font = header_font
         cell.alignment = center_align
-        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
         cell.border = thin_border
     
     for row in df.itertuples(index=False, name=None):
@@ -246,8 +235,20 @@ def generate_styled_excel(df, sheet_name="Report"):
             if cell.column_letter != 'A':
                 cell.number_format = '#,##0'
 
+    # تنظیم هوشمند و متناسب عرض ستون‌ها
     for col in ws.columns:
-        ws.column_dimensions[col[0].column_letter].width = 18
+        max_length = 0
+        column_letter = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = (max_length + 6)
+        if adjusted_width < 18:
+            adjusted_width = 18
+        ws.column_dimensions[column_letter].width = adjusted_width
 
     if ws.max_row >= 2:
         last_col = get_column_letter(ws.max_column)
@@ -286,13 +287,22 @@ def process_pasargad(file):
 
         card_to_card_mask = df['Description'].str.contains("انتقال از", na=False)
         fee_mask = df['Description'].str.contains("کارمزد", na=False)
-        daily_withdrawal_mask = df['Description'].str.contains("انتقال وجه به سپرده 379.8000.10822179.1 به نام سپرده كوتاه مدت - مهران کلانتريان_سامانه بانکداری نوین", na=False)
+        
+        # شرط ترکیبی (OR) برای برداشت روز
+        cond1 = df['Description'].str.contains("انتقال وجه به سپرده 379.8000.10822179.1 به نام سپرده كوتاه مدت - مهران کلانتريان_سامانه بانکداری نوین", na=False)
+        cond2 = df['Description'].str.contains("5022291034088359", na=False)
+        daily_withdrawal_mask = cond1 | cond2
+        
         snap_deposit_mask = df['Description'].apply(lambda x: contains_all_words(x, "غذا اطلس"))
+        
+        # ستون جدید: برداشت حضوری از بانک
+        in_person_mask = df['Description'].str.contains("سند عملیات بانکی", na=False)
 
         card_to_card_sum = df[card_to_card_mask].groupby('Date')['Deposit'].sum().reindex(unique_dates, fill_value=0)
         fee_sum = df[fee_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
         daily_withdrawal_sum = df[daily_withdrawal_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
         snap_deposit_sum = df[snap_deposit_mask].groupby('Date')['Deposit'].sum().reindex(unique_dates, fill_value=0)
+        in_person_sum = df[in_person_mask].groupby('Date')['Withdrawal'].sum().reindex(unique_dates, fill_value=0)
         end_of_day_balance = df.sort_values(['Date', 'Time']).groupby('Date')['Balance'].last().reindex(unique_dates, fill_value=0)
 
         report = pd.DataFrame(index=unique_dates)
@@ -300,14 +310,16 @@ def process_pasargad(file):
         report['Card_to_Card'] = card_to_card_sum
         report['Fee'] = fee_sum
         report['Daily_Withdrawal'] = daily_withdrawal_sum
+        report['In_Person_Withdrawal'] = in_person_sum
         report['Snap_Deposit'] = snap_deposit_sum
         report['End_of_Day_Balance'] = end_of_day_balance
         report['Sales'] = report['Card_to_Card'] / 1.1
         report['Tax'] = report['Card_to_Card'] - report['Sales']
 
         report = report.reset_index()
-        report.columns = ['تاریخ', 'کارت به کارت', 'کارمزد', 'برداشت روز', 'واریزی اسنپ', 'مانده آخر روز', 'فروش', 'مالیات']
-        final_order = ['تاریخ', 'کارت به کارت', 'فروش', 'مالیات', 'کارمزد', 'برداشت روز', 'مانده آخر روز', 'واریزی اسنپ']
+        report.columns = ['تاریخ', 'کارت به کارت', 'کارمزد', 'برداشت روز', 'برداشت حضوری از بانک', 'واریزی اسنپ', 'مانده آخر روز', 'فروش', 'مالیات']
+        
+        final_order = ['تاریخ', 'کارت به کارت', 'فروش', 'مالیات', 'کارمزد', 'برداشت روز', 'برداشت حضوری از بانک', 'مانده آخر روز', 'واریزی اسنپ']
         
         return report[final_order], None
 
